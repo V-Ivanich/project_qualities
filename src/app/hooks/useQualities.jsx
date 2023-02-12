@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
+import { toast } from 'react-toastify'
 import qualityService from '../services/quality.service'
 
 const QualitiesContex = React.createContext()
@@ -11,6 +12,7 @@ export const QualitiesProvider = ({ children }) => {
   const [qualities, setQualities] = useState([])
   const [error, setError] = useState(null)
   const [isLoading, setLoading] = useState(true)
+  const prevState = useRef()
 
   useEffect(() => {
     const getQualities = async () => {
@@ -19,8 +21,7 @@ export const QualitiesProvider = ({ children }) => {
         setQualities(content)
         setLoading(false)
       } catch (error) {
-        const { message } = error.response.data
-        setError(message)
+        errorCatcher(error)
       }
     }
     getQualities()
@@ -43,8 +44,7 @@ export const QualitiesProvider = ({ children }) => {
       )
       return content
     } catch (error) {
-      const { message } = error.response.data
-      setError(message)
+      errorCatcher(error)
     }
   }
 
@@ -54,14 +54,44 @@ export const QualitiesProvider = ({ children }) => {
       setQualities((prevState) => [...prevState, content])
       return content
     } catch (error) {
-      const { message } = error.response.data
-      setError(message)
+      errorCatcher(error)
     }
   }
 
+  const deleteQuality = async (id) => {
+    prevState.current = qualities
+    try {
+      const { content } = await qualityService.delete(id)
+      setQualities((prevState) => {
+        return prevState.filter((item) => item._id !== content._id)
+      })
+      // return content
+    } catch (error) {
+      errorCatcher(error)
+    }
+  }
+
+  function errorCatcher(error) {
+    const { message } = error.response.data
+    setError(message)
+  }
+
+  useEffect(() => {
+    if (error !== null) {
+      toast(error)
+      setError(null)
+    }
+  }, [error])
+
   return (
     <QualitiesContex.Provider
-      value={{ qualities, getQuality, updateQuality, addQuality }}>
+      value={{
+        qualities,
+        getQuality,
+        updateQuality,
+        addQuality,
+        deleteQuality,
+      }}>
       {!isLoading ? children : <h1>Qualities Loading...</h1>}
     </QualitiesContex.Provider>
   )
